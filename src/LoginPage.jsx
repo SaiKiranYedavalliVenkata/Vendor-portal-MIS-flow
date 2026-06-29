@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
-
-const API = 'http://localhost:8090'
+import { supabase } from './lib/supabase'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -16,16 +14,15 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    setMsg({ type: 'info', text: 'Checking authorization…' })
-    try {
-      const res = await axios.post(`${API}/api/request-otp`, { email })
-      if (res.data.success) {
-        navigate('/otp', { state: { email } })
-      } else {
-        setMsg({ type: 'error', text: res.data.message })
-      }
-    } catch {
-      setMsg({ type: 'error', text: 'Server error. Please try again.' })
+    setMsg({ type: 'info', text: 'Sending OTP…' })
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false }
+    })
+    if (error) {
+      setMsg({ type: 'error', text: 'Email not authorized. Please contact admin.' })
+    } else {
+      navigate('/otp', { state: { email } })
     }
     setLoading(false)
   }

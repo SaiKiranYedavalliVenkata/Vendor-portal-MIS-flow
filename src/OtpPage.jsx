@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import axios from 'axios'
-
-const API = 'http://localhost:8090'
+import { supabase } from './lib/supabase'
 
 export default function OtpPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
@@ -54,18 +52,24 @@ export default function OtpPage() {
     if (code.length !== 6) { setMsg({ type: 'error', text: 'Please enter all 6 digits.' }); return }
     setLoading(true)
     setMsg({ type: 'info', text: 'Checking OTP…' })
-    try {
-      const res = await axios.post(`${API}/api/verify-otp`, { email, otp: code })
-      if (res.data.success) {
-        setMsg({ type: 'ok', text: 'Verified! Loading your dashboard…' })
-        navigate('/dashboard', { state: { email } })
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' })
+    if (error) {
+      setMsg({ type: 'error', text: 'Invalid or expired OTP. Please try again.' })
+      setOtp(['', '', '', '', '', ''])
+      inputs.current[0]?.focus()
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+      if (!profile || profile.role !== 'vendor') {
+        await supabase.auth.signOut()
+        setMsg({ type: 'error', text: 'This email is not authorized as a vendor.' })
       } else {
-        setMsg({ type: 'error', text: res.data.message })
-        setOtp(['', '', '', '', '', ''])
-        inputs.current[0]?.focus()
+        setMsg({ type: 'ok', text: 'Verified! Loading your dashboard…' })
+        navigate('/dashboard')
       }
-    } catch {
-      setMsg({ type: 'error', text: 'Server error. Please try again.' })
     }
     setLoading(false)
   }
@@ -74,16 +78,12 @@ export default function OtpPage() {
     setMsg({ type: 'info', text: 'Sending new OTP…' })
     setOtp(['', '', '', '', '', ''])
     inputs.current[0]?.focus()
-    try {
-      const res = await axios.post(`${API}/api/request-otp`, { email })
-      if (res.data.success) {
-        setMsg({ type: 'ok', text: 'New OTP sent! Check your email.' })
-        setSecondsLeft(300)
-      } else {
-        setMsg({ type: 'error', text: res.data.message })
-      }
-    } catch {
-      setMsg({ type: 'error', text: 'Server error. Please try again.' })
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    if (error) {
+      setMsg({ type: 'error', text: 'Failed to resend OTP. Please try again.' })
+    } else {
+      setMsg({ type: 'ok', text: 'New OTP sent! Check your email.' })
+      setSecondsLeft(300)
     }
   }
 

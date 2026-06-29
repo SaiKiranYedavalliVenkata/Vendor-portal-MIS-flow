@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import axios from 'axios'
-
-const API = 'http://localhost:8090'
+import { supabase } from './lib/supabase'
 
 export default function AdminOtp() {
   const [otp, setOtp] = useState(['','','','','',''])
@@ -41,18 +39,24 @@ export default function AdminOtp() {
     if (code.length !== 6) { setMsg({ type:'error', text:'Please enter all 6 digits.' }); return }
     setLoading(true)
     setMsg({ type:'info', text:'Verifying…' })
-    try {
-      const res = await axios.post(`${API}/api/admin/verify-otp`, { email, otp: code })
-      if (res.data.success) {
-        setMsg({ type:'ok', text:'Verified! Loading admin dashboard…' })
-        navigate('/admin/dashboard', { state: { email, adminName: res.data.adminName } })
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' })
+    if (error) {
+      setMsg({ type:'error', text: 'Invalid or expired OTP. Please try again.' })
+      setOtp(['','','','','',''])
+      inputs.current[0]?.focus()
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, name')
+        .eq('id', data.user.id)
+        .single()
+      if (!profile || profile.role !== 'admin') {
+        await supabase.auth.signOut()
+        setMsg({ type:'error', text: 'This email is not authorized as an admin.' })
       } else {
-        setMsg({ type:'error', text: res.data.message })
-        setOtp(['','','','','',''])
-        inputs.current[0]?.focus()
+        setMsg({ type:'ok', text:'Verified! Loading admin dashboard…' })
+        navigate('/admin/dashboard')
       }
-    } catch {
-      setMsg({ type:'error', text:'Server error. Please try again.' })
     }
     setLoading(false)
   }
