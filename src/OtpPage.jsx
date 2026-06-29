@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 
 export default function OtpPage() {
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState({ type: '', text: '' })
   const [secondsLeft, setSecondsLeft] = useState(300)
@@ -29,8 +29,8 @@ export default function OtpPage() {
     const newOtp = [...otp]
     newOtp[idx] = val
     setOtp(newOtp)
-    if (val && idx < 5) inputs.current[idx + 1]?.focus()
-    if (newOtp.join('').length === 6) verifyOTP(newOtp.join(''))
+    if (val && idx < 7) inputs.current[idx + 1]?.focus()
+    if (newOtp.join('').length === 8) verifyOTP(newOtp.join(''))
   }
 
   function handleKeyDown(e, idx) {
@@ -39,17 +39,17 @@ export default function OtpPage() {
 
   function handlePaste(e) {
     e.preventDefault()
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
     const newOtp = [...otp]
     pasted.split('').forEach((ch, i) => { newOtp[i] = ch })
     setOtp(newOtp)
-    inputs.current[Math.min(pasted.length, 5)]?.focus()
-    if (pasted.length === 6) verifyOTP(pasted)
+    inputs.current[Math.min(pasted.length, 7)]?.focus()
+    if (pasted.length === 8) verifyOTP(pasted)
   }
 
   async function verifyOTP(otpVal) {
     const code = otpVal || otp.join('')
-    if (code.length !== 6) { setMsg({ type: 'error', text: 'Please enter all 6 digits.' }); return }
+    if (code.length !== 8) { setMsg({ type: 'error', text: 'Please enter all 8 digits.' }); return }
     setLoading(true)
     setMsg({ type: 'info', text: 'Checking OTP…' })
     const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' })
